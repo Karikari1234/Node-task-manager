@@ -4,11 +4,13 @@ const router = new express.Router()
 
 
 
+
 router.post('/users', async (req, res) => {
     const newUser = new User(req.body)
 
     try {
         await newUser.save()
+        const token = await newUser.generateAuthToken()
         res.status(201)
         res.send(newUser)
     } catch (error) {
@@ -44,14 +46,28 @@ router.get('/users/:id', async (req, res) => {
 })
 
 router.patch('/users/:id', async (req, res) => {
-    const _id = req.params.id
+    const updates = Object.keys(req.body)
+    const allowedUpdates = ['name', 'age', 'email', 'password']
+    const isValidOperation = updates.every((update) => allowedUpdates.includes(update))
+
+    if (!isValidOperation) {
+        res.status(400).send('Bad request')
+    }
 
     try {
-        const updatedUser = await User.updateOne({
-            _id: _id
-        }, req.body)
+
+        const updatedUser = await User.findById(req.params.id)
+
+        updates.forEach((update) => {
+            updatedUser[update] = req.body[update]
+        })
+        await updatedUser.save()
+        // const updatedUser = await User.updateOne({
+        //     _id: _id
+        // }, req.body)
+
         if (!updatedUser) {
-            return res.status(404)
+            return res.status(404).send()
         }
 
         res.send(updatedUser)
@@ -77,6 +93,27 @@ router.delete('/users/:id', async (req, res) => {
         res.status(500)
         res.send()
     }
+})
+
+router.post('/users/login', async (req, res) => {
+
+    try {
+        const user = await User.findByCredentials(req.body.email, req.body.password)
+        const token = await user.generateAuthToken()
+        if (!user) {
+            res.status(400).send('Bad Request')
+        }
+
+
+        res.send({
+            user,
+            token
+        })
+
+    } catch (error) {
+        res.status(400).send('Bad Request')
+    }
+
 })
 
 module.exports = router
