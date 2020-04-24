@@ -2,6 +2,8 @@ const express = require('express')
 const User = require('../models/users')
 const auth = require('../middleware/auth')
 const multer = require('multer')
+const sharp = require('sharp')
+const emails = require('../emails/accounts')
 const upload = multer({
     limits: {
         fileSize: 2000000
@@ -24,6 +26,7 @@ router.post('/users', async (req, res) => {
 
     try {
         await newUser.save()
+        emails.welcomeMsg(newUser.email, newUser.name)
         const token = await newUser.generateAuthToken()
         res.status(201).send({
             newUser,
@@ -35,7 +38,11 @@ router.post('/users', async (req, res) => {
 })
 
 router.post('/users/me/avators', auth, upload.single('avator'), async (req, res) => {
-    req.user.avatar = req.file.buffer
+    const buffer = await sharp(req.file.buffer).resize({
+        height: 250,
+        width: 250
+    }).png().toBuffer()
+    req.user.avatar = buffer
     await req.user.save()
     res.send('Success')
 }, (error, req, res, next) => {
@@ -51,7 +58,7 @@ router.delete('/users/me/avators', auth, async (req, res) => {
 })
 
 router.get('/users/me/avators', auth, async (req, res) => {
-    res.set('Content-Type', 'image/jpg')
+    res.set('Content-Type', 'image/png')
     if (!req.user.avatar) {
         res.status(404).send()
     }
@@ -116,6 +123,7 @@ router.patch('/users/me', auth, async (req, res) => {
 router.delete('/users/me', auth, async (req, res) => {
     try {
         await req.user.remove()
+        emails.byebyeMsg(req.user.email, req.user.name)
         res.send(req.user)
     } catch (error) {
         res.status(500)
