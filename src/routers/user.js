@@ -1,6 +1,19 @@
 const express = require('express')
 const User = require('../models/users')
 const auth = require('../middleware/auth')
+const multer = require('multer')
+const upload = multer({
+    limits: {
+        fileSize: 2000000
+    },
+    fileFilter(req, file, cb) {
+        if (!file.originalname.match(/\.(jpeg|jpg|png)$/)) {
+            return cb(new Error('Please upload an image file'))
+        }
+
+        cb(undefined, true)
+    }
+})
 const router = new express.Router()
 
 
@@ -12,14 +25,41 @@ router.post('/users', async (req, res) => {
     try {
         await newUser.save()
         const token = await newUser.generateAuthToken()
-        res.status(201).send({newUser, token})
+        res.status(201).send({
+            newUser,
+            token
+        })
     } catch (error) {
         res.status(400).send()
     }
 })
 
-router.post('/users/logout',auth,async (req,res) => {
-    try{
+router.post('/users/me/avators', auth, upload.single('avator'), async (req, res) => {
+    req.user.avatar = req.file.buffer
+    await req.user.save()
+    res.send('Success')
+}, (error, req, res, next) => {
+    res.status(400).send({
+        error: error.message
+    })
+})
+
+router.delete('/users/me/avators', auth, async (req, res) => {
+    req.user.avatar = undefined
+    await req.user.save()
+    res.send('User Profile Picture deleted')
+})
+
+router.get('/users/me/avators', auth, async (req, res) => {
+    res.set('Content-Type', 'image/jpg')
+    if (!req.user.avatar) {
+        res.status(404).send()
+    }
+    res.send(req.user.avatar)
+})
+
+router.post('/users/logout', auth, async (req, res) => {
+    try {
         req.user.tokens = req.user.tokens.filter((token) => {
             return token.token !== req.token
         })
@@ -27,49 +67,32 @@ router.post('/users/logout',auth,async (req,res) => {
         await req.user.save()
 
         res.status(200).send()
-    }
-    catch (error){
+    } catch (error) {
         res.status(500).send()
     }
 
 })
 
-router.post('/users/logoutAll',auth,async (req,res) => {
-    try{
+router.post('/users/logoutAll', auth, async (req, res) => {
+    try {
         req.user.tokens = []
 
         await req.user.save()
 
         res.status(200).send()
-    }
-    catch (error){
+    } catch (error) {
         res.status(500).send()
     }
 
 })
 
-router.get('/users/me', auth ,async (req, res) => {
+router.get('/users/me', auth, async (req, res) => {
     res.send(req.user)
 })
 
-router.get('/users/:id', async (req, res) => {
-    const _id = req.params.id
 
-    try {
-        const user = await User.findById(_id)
-        if (!user) {
-            return res.status(404).send()
-        }
 
-        res.send(user)
-    } catch (error) {
-        res.status(500)
-        res.send()
-    }
-
-})
-
-router.patch('/users/:id', async (req, res) => {
+router.patch('/users/me', auth, async (req, res) => {
     const updates = Object.keys(req.body)
     const allowedUpdates = ['name', 'age', 'email', 'password']
     const isValidOperation = updates.every((update) => allowedUpdates.includes(update))
@@ -79,40 +102,21 @@ router.patch('/users/:id', async (req, res) => {
     }
 
     try {
-
-        const updatedUser = await User.findById(req.params.id)
-
         updates.forEach((update) => {
-            updatedUser[update] = req.body[update]
+            req.user[update] = req.body[update]
         })
-        await updatedUser.save()
-        // const updatedUser = await User.updateOne({
-        //     _id: _id
-        // }, req.body)
-
-        if (!updatedUser) {
-            return res.status(404).send()
-        }
-
-        res.send(updatedUser)
+        await req.user.save()
+        res.send(req.user)
     } catch (error) {
         res.status(500)
         res.send()
     }
 })
 
-router.delete('/users/:id', async (req, res) => {
-    const _id = req.params.id
-
+router.delete('/users/me', auth, async (req, res) => {
     try {
-        const deletedUser = await User.findByIdAndRemove({
-            _id: _id
-        })
-        if (!deletedUser) {
-            return res.status(404).send()
-        }
-
-        res.send(deletedUser)
+        await req.user.remove()
+        res.send(req.user)
     } catch (error) {
         res.status(500)
         res.send()

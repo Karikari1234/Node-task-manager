@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
 const validator = require('validator')
 const bcrypt = require('bcryptjs')
+const Task = require('./tasks')
 const jwt = require('jsonwebtoken')
 
 const userSchema = new mongoose.Schema({
@@ -32,7 +33,7 @@ const userSchema = new mongoose.Schema({
         trim: true,
         minlength: 7,
         validate(value) {
-            if (value.toLowerCase().search('password') != -1) {
+            if (value.toLowerCase().search('password') !== -1) {
                 throw new Error('Password incorrect')
             }
         }
@@ -42,7 +43,19 @@ const userSchema = new mongoose.Schema({
             type: String,
             required: true
         }
-    }]
+    }],
+    avatar: {
+        type: Buffer
+    }
+}, {
+    timestamps: true
+})
+
+
+userSchema.virtual('tasks', {
+    ref: 'Task',
+    localField: '_id',
+    foreignField: 'owner'
 })
 
 userSchema.methods.toJSON = function () {
@@ -96,6 +109,16 @@ userSchema.pre('save', async function (next) {
     if (user.isModified('password')) {
         user.password = await bcrypt.hash(user.password, 8)
     }
+
+    next()
+})
+
+userSchema.pre('remove', async function (next) {
+    const user = this
+
+    await Task.deleteMany({
+        owner: user._id
+    })
 
     next()
 })
