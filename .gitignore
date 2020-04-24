@@ -1,6 +1,10 @@
 #Idea
 .idea/
 
+
+#config
+config/
+
 # Logs
 logs
 *.log
