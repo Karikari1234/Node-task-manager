@@ -26,12 +26,12 @@ const byebyeMsg = (email, name) => {
     }).catch((e) => console.log(e))
 }
 
-// const emails = {
-//     welcomeMsg: welcomeMsg,
-//     byebyeMsg: byebyeMsg
-// }
+const emails = {
+    welcomeMsg: welcomeMsg,
+    byebyeMsg: byebyeMsg
+}
 
-//emails.byebyeMsg('naafizrahman1@gmail.com', 'Karim')
+emails.byebyeMsg('naafizrahman1@gmail.com', 'Karim')
 module.exports = {
     welcomeMsg: welcomeMsg,
     byebyeMsg: byebyeMsg
