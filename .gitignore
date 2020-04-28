@@ -5,6 +5,9 @@
 #config
 config/
 
+#tests
+tests/
+
 # Logs
 logs
 *.log

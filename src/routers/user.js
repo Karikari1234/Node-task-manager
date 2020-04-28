@@ -126,7 +126,7 @@ router.delete('/users/me', auth, async (req, res) => {
         emails.byebyeMsg(req.user.email, req.user.name)
         res.send(req.user)
     } catch (error) {
-        res.status(500)
+        res.status(400)
         res.send()
     }
 })
